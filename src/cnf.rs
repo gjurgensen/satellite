@@ -1,47 +1,64 @@
+use core::panic;
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 
 // Variable identifiers
 // Invariant: nonnegative
 // TODO: rename to "atom"?
-#[derive(Hash,PartialEq,Eq,Clone,Copy)]
+#[derive(Hash,PartialEq,Eq,Clone,Copy,Debug)]
 pub struct Var {
-    val: i32,
+    val: u32,
 }
 
 impl Var {
-    pub fn new(val: i32) -> Self {
+    pub fn new(val: u32) -> Self {
         Self {
-            val: if val > 0 {val} else {
-                // Panic/warn?
-                (-1)*val
+            val: if 0 <= val {val} else {
+                panic!("Value should be nonnegative");
             },
         }
     }
 }
+
+impl fmt::Display for Var {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.val)
+    }
+}
+
 
 // A partial mapping from variables to values
 pub type Asgmt = HashMap<Var, bool>;
 
 
 // A positive or negative literal
-#[derive(PartialEq,Eq,Clone,Copy)]
+#[derive(PartialEq,Eq,Clone,Copy,Debug)]
 pub struct Literal {
-    data: i32,
+    // The MSB represents the sign, and the rest represent the var
+    data: u32,
 }
+
+const LITERAL_MASK : u32 = 1 << 31;
 
 impl Literal {
     pub fn new(positive: bool, var: Var) -> Self {
         Self {
-            data: if positive {var.val} else {(-1)*var.val},
+            data: if positive {var.val} else {var.val | LITERAL_MASK},
         }
     }
 
     pub fn positive(&self) -> bool {
-        self.data > 0
+        (self.data & LITERAL_MASK) == 0
     }
 
     pub fn var(&self) -> Var {
-        Var::new(self.data.abs())
+        Var::new(self.data & !LITERAL_MASK)
+    }
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}", if self.positive() { "!" } else { "" }, self.var())
     }
 }
 
@@ -86,6 +103,7 @@ pub fn free_vars(cnf: &Cnf, asgmt: &Asgmt) -> HashSet<Var> {
 
 // Evaluates clause when fully assigned
 pub fn eval_clause(clause: &Clause, asgmt: &Asgmt) -> Option<bool> {
+    println!("Evaluating clause {:?} under assignment {:?}", clause, asgmt);
     for literal in clause {
         let pos = literal.positive();
         let val = *asgmt.get(&literal.var())?;
@@ -100,6 +118,7 @@ pub fn eval_clause(clause: &Clause, asgmt: &Asgmt) -> Option<bool> {
 // Evaluates cnf when sufficiently assigned (evaluates a fully assigned clause,
 // then true if all true, false if exists false, undefined otherwise).
 pub fn eval_cnf(cnf: &Cnf, asgmt: &Asgmt) -> Option<bool> {
+    println!("Evaluating cnf {:?} under assignment {:?}", cnf, asgmt);
     let mut under_assigned = false;
     for clause in cnf {
         if let Some(val) = eval_clause(clause, asgmt) {
