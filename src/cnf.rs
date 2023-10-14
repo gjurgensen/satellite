@@ -63,8 +63,8 @@ pub fn vars_in_clause(clause: &Clause) -> HashSet<Var> {
 
 pub fn all_vars_in_cnf(cnf: &Cnf) -> HashSet<Var> {
     cnf.iter()
-       .flat_map(|clause| clause.iter().map(|literal| literal.var()))
-       .collect()
+        .flat_map(|clause| clause.iter().map(|literal| literal.var()))
+        .collect()
 }
 
 pub fn bound_vars(asgmt: &Asgmt) -> HashSet<Var> {
@@ -79,4 +79,40 @@ pub fn free_bound_vars_pair(cnf: &Cnf, asgmt: &Asgmt) -> (HashSet<Var>, HashSet<
 
 pub fn free_vars(cnf: &Cnf, asgmt: &Asgmt) -> HashSet<Var> {
     free_bound_vars_pair(cnf, asgmt).0
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Evaluates clause when fully assigned
+pub fn eval_clause(clause: &Clause, asgmt: &Asgmt) -> Option<bool> {
+    for literal in clause {
+        let pos = literal.positive();
+        let val = *asgmt.get(&literal.var())?;
+        if pos == val {
+            return Some(true)
+        }
+    }
+    Some(false)
+}
+
+
+// Evaluates cnf when sufficiently assigned (evaluates a fully assigned clause,
+// then true if all true, false if exists false, undefined otherwise).
+pub fn eval_cnf(cnf: &Cnf, asgmt: &Asgmt) -> Option<bool> {
+    let mut under_assigned = false;
+    for clause in cnf {
+        if let Some(val) = eval_clause(clause, asgmt) {
+            if !val {
+                return Some(false)
+            }
+        } else {
+            under_assigned = true;
+        }
+    }
+    if under_assigned {
+        None
+    } else {
+        Some(true)
+    }
 }

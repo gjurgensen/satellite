@@ -1,40 +1,9 @@
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 pub mod cnf;
 
 
 ////////////////////////////////////////////////////////////////////////////////
-
-// TODO: incrementalize count
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-enum UpdateResult {
-    Added,
-    Redundant,
-    Contradictory,
-}
-
-// Does not update when doing so would be contradictory
-// TODO (OPTIMIZATION): avoid double lookup
-fn try_add_asgmt(var: cnf::Var, val: bool, asgmt: &mut cnf::Asgmt) -> UpdateResult {
-    match asgmt.get(&var) {
-        Some(current_val) => {
-            if val == *current_val {
-                UpdateResult::Redundant
-            } else {
-                UpdateResult::Contradictory
-            }
-        },
-        None => {
-            asgmt.insert(var, val);
-            UpdateResult::Added
-        },
-    }
-}
-
 
 // Assumption: clause is normal
 fn get_literal_when_unit(clause: &cnf::Clause, asgmt: &cnf::Asgmt) -> Option<cnf::Literal> {
@@ -138,36 +107,33 @@ fn bool_propagate(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> HashSet<cnf::Va
 }
 
 
-// TODO
-fn all_clauses_true(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> bool {
-    todo!()
-}
-
-
-// TODO
-fn exists_false_clause(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> bool {
-    todo!()
-}
-
-// TODO
+// Assumption: There exists at least one literal in clauses
 fn choose_literal(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> cnf::Literal {
-    todo!()
+    // This is of course the spot to try heuristics. For now, we arbitrarily
+    // choose the first literal we come across.
+    let bound = cnf::bound_vars(asgmt);
+    clauses.iter()
+        .flatten()
+        .filter(|literal| bound.contains(&literal.var()))
+        .cloned()
+        .next()
+        .unwrap()
 }
 
 
 fn dpll(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> bool {
     // TODO: condense
     let new_vars = bool_propagate(clauses, asgmt);
-    if all_clauses_true(clauses, asgmt) {
-        return true
-    }
-    if exists_false_clause(clauses, asgmt) {
-        // Remove new_vars
-        for new in new_vars {
-            asgmt.remove(&new);
+
+    if let Some(val) = cnf::eval_cnf(clauses, asgmt) {
+        if !val {
+            for new in new_vars {
+                asgmt.remove(&new);
+            }
         }
-        return false
+        return val
     }
+
     let literal = choose_literal(clauses, asgmt);
     let var = literal.var();
     let val = literal.positive();
