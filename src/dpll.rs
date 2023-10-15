@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::clauses;
 
@@ -10,7 +10,7 @@ fn get_literal_when_unit(clause: &clauses::Clause, asgmt: &clauses::Asgmt) -> Op
     let mut unit : Option<clauses::Literal> = None;
     for literal in clause.iter() {
         match asgmt.get(&literal.atom()) {
-            Some(&val) => {
+            Some(val) => {
                 if val == literal.positive() {
                     return None;
                 }
@@ -121,7 +121,7 @@ fn bool_propagate(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> HashSet
 fn choose_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> clauses::Literal {
     // This is of course the spot to try heuristics. For now, we arbitrarily
     // choose the first literal we come across.
-    let bound = clauses::Cnf::bound_atoms(asgmt);
+    let bound = asgmt.atoms();
     clauses.iter()
         .flat_map(|clause| clause.iter().filter(|literal| !bound.contains(&literal.atom())))
         .cloned()
@@ -167,7 +167,7 @@ fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> bool {
 
 
 pub fn sat(clauses: &clauses::Cnf) -> Option<clauses::Asgmt> {
-    let mut asgmt = HashMap::new();
+    let mut asgmt = clauses::Asgmt::new();
     if dpll(clauses, &mut asgmt) {
         Some(asgmt)
     } else {

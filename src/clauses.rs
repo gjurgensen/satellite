@@ -30,8 +30,31 @@ impl fmt::Display for Atom {
 ////////////////////////////////////////////////////////////////////////////////
 
 // A partial mapping from atoms to values
-pub type Asgmt = HashMap<Atom, bool>;
+// pub type Asgmt = HashMap<Atom, bool>;
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct Asgmt (HashMap<Atom, bool>);
 
+impl Asgmt {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    pub fn get(&self, atom: &Atom) -> Option<bool> {
+        self.0.get(atom).map(|&b| b)
+    }
+
+    pub fn insert(&mut self, atom: Atom, positive: bool) -> Option<bool> {
+        self.0.insert(atom, positive)
+    }
+
+    pub fn remove(&mut self, atom: &Atom) -> Option<bool> {
+        self.0.remove(atom)
+    }
+
+    pub fn atoms(&self) -> HashSet<Atom> {
+        self.0.keys().cloned().collect()
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -98,7 +121,7 @@ impl Clause {
         // println!("Evaluating clause {} under assignment {:?}", clause, asgmt);
         for literal in self.literals.iter() {
             let pos = literal.positive();
-            let val = *asgmt.get(&literal.atom())?;
+            let val = asgmt.get(&literal.atom())?;
             if pos == val {
                 return Some(true)
             }
@@ -160,13 +183,9 @@ impl Cnf {
             .collect()
     }
 
-    pub fn bound_atoms(asgmt: &Asgmt) -> HashSet<Atom> {
-        asgmt.keys().cloned().collect()
-    }
-
     pub fn free_bound_atoms_pair(&self, asgmt: &Asgmt) -> (HashSet<Atom>, HashSet<Atom>) {
         let all = self.atoms();
-        let bound = Self::bound_atoms(asgmt);
+        let bound = asgmt.atoms();
         (all.difference(&bound).map(|&atom| atom).collect(), bound)
     }
 
