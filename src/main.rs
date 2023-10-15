@@ -1,7 +1,16 @@
+use std::env;
+
 pub mod cnf;
+pub mod dimacs;
 pub mod dpll;
 
 fn main() {
+    if let Some(arg) = env::args().next() {
+        if let Err(err) = dimacs::read_dimacs_check_sat_and_print(arg) {
+            eprintln!("Error: {}", err);
+        }
+    }
+    println!("Expecting commandline argument specifying a DIMACs file.")
 }
 
 
@@ -46,4 +55,11 @@ fn trivial_noncontradiction() {
         println!("unsat");
     }
     assert!(result == None);
+}
+
+#[test]
+fn dimas_mini() {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini.cnf") {
+        eprintln!("Error: {}", err);
+    }
 }

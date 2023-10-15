@@ -13,7 +13,8 @@ pub struct Var {
 impl Var {
     pub fn new(val: u32) -> Self {
         Self {
-            val: if 0 <= val {val} else {
+            // Assumes normal 2s complement
+            val: if 0 <= (val as i32) {val} else {
                 panic!("Value should be nonnegative");
             },
         }
@@ -103,7 +104,7 @@ pub fn free_vars(cnf: &Cnf, asgmt: &Asgmt) -> HashSet<Var> {
 
 // Evaluates clause when fully assigned
 pub fn eval_clause(clause: &Clause, asgmt: &Asgmt) -> Option<bool> {
-    println!("Evaluating clause {:?} under assignment {:?}", clause, asgmt);
+    // println!("Evaluating clause {:?} under assignment {:?}", clause, asgmt);
     for literal in clause {
         let pos = literal.positive();
         let val = *asgmt.get(&literal.var())?;
@@ -118,7 +119,7 @@ pub fn eval_clause(clause: &Clause, asgmt: &Asgmt) -> Option<bool> {
 // Evaluates cnf when sufficiently assigned (evaluates a fully assigned clause,
 // then true if all true, false if exists false, undefined otherwise).
 pub fn eval_cnf(cnf: &Cnf, asgmt: &Asgmt) -> Option<bool> {
-    println!("Evaluating cnf {:?} under assignment {:?}", cnf, asgmt);
+    // println!("Evaluating cnf {:?} under assignment {:?}", cnf, asgmt);
     let mut under_assigned = false;
     for clause in cnf {
         if let Some(val) = eval_clause(clause, asgmt) {

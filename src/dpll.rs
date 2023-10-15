@@ -118,7 +118,7 @@ fn choose_literal(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> cnf::Literal {
     let bound = cnf::bound_vars(asgmt);
     clauses.iter()
         .flatten()
-        .filter(|literal| bound.contains(&literal.var()))
+        .filter(|literal| !bound.contains(&literal.var()))
         .cloned()
         .next()
         .unwrap()
@@ -126,10 +126,9 @@ fn choose_literal(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> cnf::Literal {
 
 
 fn dpll(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> bool {
-    // TODO: condense
-    println!("asgmt (start of round): {:?}", asgmt);
+    // println!("asgmt (start of round): {:?}", asgmt);
     let new_vars = bool_propagate(clauses, asgmt);
-    println!("asgmt (post-propagate): {:?}", asgmt);
+    // println!("asgmt (post-propagate): {:?}", asgmt);
 
     if let Some(val) = cnf::eval_cnf(clauses, asgmt) {
         if !val {
