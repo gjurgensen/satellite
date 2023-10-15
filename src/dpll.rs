@@ -9,11 +9,16 @@ use crate::clauses;
 fn get_literal_when_unit(clause: &clauses::Clause, asgmt: &clauses::Asgmt) -> Option<clauses::Literal> {
     let mut unit : Option<clauses::Literal> = None;
     for literal in clause.iter() {
-        if !asgmt.contains_key(&literal.atom()) {
-            match unit {
+        match asgmt.get(&literal.atom()) {
+            Some(&val) => {
+                if val == literal.positive() {
+                    return None;
+                }
+            },
+            None => match unit {
                 Some(_) => return None,
-                None => unit = Some(literal.clone())
-            }
+                None => unit = Some(literal.clone()),
+            },
         }
     };
     unit
@@ -125,10 +130,9 @@ fn choose_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> clauses
 }
 
 
+// TODO: rewrite recursion into a loop
 fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> bool {
-    // println!("asgmt (start of round): {:?}", asgmt);
     let new_atoms = bool_propagate(clauses, asgmt);
-    // println!("asgmt (post-propagate): {:?}", asgmt);
 
     if let Some(val) = clauses.eval_cnf(asgmt) {
         if !val {
@@ -153,6 +157,7 @@ fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> bool {
     if dpll(clauses, asgmt) {
         return true
     }
+    println!("Any assignment of {} yield UNSAT; backtracking", literal.atom());
     asgmt.remove(&atom);
     for new in new_atoms {
         asgmt.remove(&new);

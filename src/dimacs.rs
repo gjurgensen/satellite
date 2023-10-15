@@ -21,7 +21,6 @@ where P: AsRef<path::Path> {
     };
     let mut clauses: clauses::Cnf = clauses::Cnf::new();
     for line in lines {
-        // println!("Current clauses: {}", clauses);
         if num_clauses == 0 {
             return Some(clauses)
         }
@@ -35,8 +34,9 @@ where P: AsRef<path::Path> {
             }
             let pos = 0 < num;
             let var = clauses::Atom::new((if pos {num} else {-num}) as u32);
-            clause.add(clauses::Literal::new(pos, var));
-            // println!("Adding literal to clause: {}", clause);
+            let literal = clauses::Literal::new(pos, var);
+            // println!("Adding literal {}", literal);
+            clause.add(literal);
         }
         // println!("Adding clause: {}", clause);
         clauses.add(clause);

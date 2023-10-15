@@ -60,7 +60,7 @@ impl Literal {
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}", if self.positive() { "!" } else { "" }, self.atom())
+        write!(f, "{}{}", if self.positive() { "" } else { "!" }, self.atom())
     }
 }
 
