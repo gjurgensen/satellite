@@ -13,12 +13,14 @@ where P: AsRef<path::Path> {
     let file = fs::File::open(path).ok()?;
     let mut lines = io::BufReader::new(file).lines();
     let line = lines.next()?.ok()?;
-    let (_num_var, mut num_clauses) = match line.split_whitespace().collect_tuple()? {
+    println!("Reading first line.");
+    let (num_vars, mut num_clauses) = match line.split_whitespace().collect_tuple()? {
         ("p", "cnf", num_vars, num_clauses) =>
             (num_vars.parse::<u32>().ok()?,
              num_clauses.parse::<u32>().ok()?),
         _ => return None,
     };
+    println!("num_vars: {}, num_clauses: {}", num_vars, num_clauses);
     let mut clauses: clauses::Cnf = clauses::Cnf::new();
     for line in lines {
         if num_clauses == 0 {
@@ -35,10 +37,10 @@ where P: AsRef<path::Path> {
             let pos = 0 < num;
             let var = clauses::Atom::new((if pos {num} else {-num}) as u32);
             let literal = clauses::Literal::new(pos, var);
-            // println!("Adding literal {}", literal);
+            println!("Adding literal {}", literal);
             clause.add(literal);
         }
-        // println!("Adding clause: {}", clause);
+        println!("Adding clause: {}", clause);
         clauses.add(clause);
     }
     Some(clauses)

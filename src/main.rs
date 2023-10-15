@@ -93,3 +93,10 @@ fn dimacs_mini3() {
         eprintln!("Error: {}", err);
     }
 }
+
+#[test]
+fn dimacs_uf20_01000() {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf20-01000.cnf") {
+        eprintln!("Error: {}", err);
+    }
+}

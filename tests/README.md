@@ -1,0 +1,1 @@
+`uf20-01000.cnf` obtained from: https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html
