@@ -95,7 +95,7 @@ impl Clause {
 
     // Evaluates clause when fully assigned
     pub fn eval_clause(&self, asgmt: &Asgmt) -> Option<bool> {
-        // println!("Evaluating clause {:?} under assignment {:?}", clause, asgmt);
+        // println!("Evaluating clause {} under assignment {:?}", clause, asgmt);
         for literal in self.literals.iter() {
             let pos = literal.positive();
             let val = *asgmt.get(&literal.atom())?;
@@ -116,19 +116,15 @@ impl IntoIterator for Clause {
     }
 }
 
-// impl<'a> IntoIterator for &'a Clause {
-//     type Item = &'a Literal;
-//     type IntoIter = std::vec::IntoIter<Self::Item>;
-//
-//     fn into_iter(self: &'a Clause) -> Self::IntoIter {
-//         // self.literals.iter().into_iter()
-//         self.literals.into_iter().map(|literal| &literal).into_iter()
-//     }
-// }
-
 impl std::convert::From<Vec<Literal>> for Clause {
     fn from(literals: Vec<Literal>) -> Self {
         Self {literals}
+    }
+}
+
+impl fmt::Display for Clause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({})", itertools::join(self.literals.iter(), " "))
     }
 }
 
@@ -190,7 +186,7 @@ impl Cnf {
     // Evaluates cnf when sufficiently assigned (evaluates a fully assigned clause,
     // then true if all true, false if exists false, undefined otherwise).
     pub fn eval_cnf(&self, asgmt: &Asgmt) -> Option<bool> {
-        // println!("Evaluating cnf {:?} under assignment {:?}", cnf, asgmt);
+        // println!("Evaluating cnf {} under assignment {:?}", cnf, asgmt);
         let mut under_assigned = false;
         for clause in self.clauses.iter() {
             if let Some(val) = clause.eval_clause(asgmt) {
@@ -229,5 +225,11 @@ impl std::convert::From<Vec<Vec<Literal>>> for Cnf {
         Self {
             clauses: clauses.into_iter().map(Clause::from).collect()
         }
+    }
+}
+
+impl fmt::Display for Cnf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({})", itertools::join(self.clauses.iter(), ""))
     }
 }

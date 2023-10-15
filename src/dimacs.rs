@@ -21,7 +21,7 @@ where P: AsRef<path::Path> {
     };
     let mut clauses: clauses::Cnf = clauses::Cnf::new();
     for line in lines {
-        // println!("Current clauses: {:?}", clauses);
+        // println!("Current clauses: {}", clauses);
         if num_clauses == 0 {
             return Some(clauses)
         }
@@ -36,9 +36,9 @@ where P: AsRef<path::Path> {
             let pos = 0 < num;
             let var = clauses::Atom::new((if pos {num} else {-num}) as u32);
             clause.add(clauses::Literal::new(pos, var));
-            // println!("Adding literal to clause: {:?}", clause);
+            // println!("Adding literal to clause: {}", clause);
         }
-        // println!("Adding clause: {:?}", clause);
+        // println!("Adding clause: {}", clause);
         clauses.add(clause);
     }
     Some(clauses)
@@ -48,7 +48,7 @@ where P: AsRef<path::Path> {
 pub fn read_dimacs_and_check_sat<P>(path: P) -> Result<Option<clauses::Asgmt>, String>
 where P: AsRef<path::Path> {
     let cnf: clauses::Cnf = read_dimacs(path).ok_or("Error parsing DIMACs file.")?;
-    println!("Read CNF: {:#?}", cnf);
+    println!("Read CNF: {}", cnf);
     Ok(dpll::sat(&cnf))
 }
 

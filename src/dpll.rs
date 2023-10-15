@@ -143,10 +143,12 @@ fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> bool {
     let atom = literal.atom();
     let val = literal.positive();
 
+    println!("Adding assumption: {}", literal);
     asgmt.insert(atom, val);
     if dpll(clauses, asgmt) {
         return true
     }
+    println!("Assumption {} failed, assuming its inverse", literal);
     asgmt.insert(atom, !val);
     if dpll(clauses, asgmt) {
         return true
