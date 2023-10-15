@@ -1,6 +1,6 @@
 use std::env;
 
-pub mod cnf;
+pub mod clauses;
 pub mod dimacs;
 pub mod dpll;
 
@@ -18,7 +18,7 @@ fn main() {
 
 #[test]
 fn empty_sat() {
-    let cnf = vec![];
+    let cnf = clauses::Cnf::new();
     let result = dpll::sat(&cnf);
     if let Some(asgmt) = &result {
         println!("sat: {:#?}", asgmt);
@@ -30,8 +30,8 @@ fn empty_sat() {
 
 #[test]
 fn singleton_sat() {
-    let var = cnf::Var::new(0);
-    let cnf: cnf::Cnf = vec![vec![cnf::Literal::new(true, var)]];
+    let atom = clauses::Atom::new(0);
+    let cnf: clauses::Cnf = clauses::Cnf::from(vec![vec![clauses::Literal::new(true, atom)]]);
     let result = dpll::sat(&cnf);
     if let Some(asgmt) = &result {
         println!("sat: {:#?}", asgmt);
@@ -43,11 +43,11 @@ fn singleton_sat() {
 
 #[test]
 fn trivial_noncontradiction() {
-    let var = cnf::Var::new(0);
-    let cnf: cnf::Cnf = vec![
-        vec![cnf::Literal::new(true, var)],
-        vec![cnf::Literal::new(false, var)]
-    ];
+    let atom = clauses::Atom::new(0);
+    let cnf: clauses::Cnf = clauses::Cnf::from(vec![
+        vec![clauses::Literal::new(true, atom)],
+        vec![clauses::Literal::new(false, atom)]
+    ]);
     let result = dpll::sat(&cnf);
     if let Some(asgmt) = &result {
         println!("sat: {:#?}", asgmt);
@@ -58,7 +58,7 @@ fn trivial_noncontradiction() {
 }
 
 #[test]
-fn dimas_mini() {
+fn dimacs_mini() {
     if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini.cnf") {
         eprintln!("Error: {}", err);
     }

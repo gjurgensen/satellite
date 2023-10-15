@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::cnf;
+use crate::clauses;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
 // Assumption: clause is normal
-fn get_literal_when_unit(clause: &cnf::Clause, asgmt: &cnf::Asgmt) -> Option<cnf::Literal> {
-    let mut unit : Option<cnf::Literal> = None;
-    for literal in clause {
-        if !asgmt.contains_key(&literal.var()) {
+fn get_literal_when_unit(clause: &clauses::Clause, asgmt: &clauses::Asgmt) -> Option<clauses::Literal> {
+    let mut unit : Option<clauses::Literal> = None;
+    for literal in clause.iter() {
+        if !asgmt.contains_key(&literal.atom()) {
             match unit {
                 Some(_) => return None,
                 None => unit = Some(literal.clone())
@@ -19,35 +19,35 @@ fn get_literal_when_unit(clause: &cnf::Clause, asgmt: &cnf::Asgmt) -> Option<cnf
     unit
 }
 
-fn try_find_propagate_unit(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> Option<cnf::Var> {
-    for clause in clauses {
-        if let Some(literal) = get_literal_when_unit(clause, asgmt) {
-            let var = literal.var();
+fn try_find_propagate_unit(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> Option<clauses::Atom> {
+    for clause in clauses.iter() {
+        if let Some(literal) = get_literal_when_unit(&clause, asgmt) {
+            let atom = literal.atom();
             let positive = literal.positive();
             println!("Unit propagating {}", literal);
-            asgmt.insert(var, positive);
-            return Some(var)
+            asgmt.insert(atom, positive);
+            return Some(atom)
         }
     }
     None
 }
 
-fn unit_propagate_all(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> HashSet<cnf::Var> {
-    let mut vars: HashSet<cnf::Var> = HashSet::new();
-    while let Some(var) = try_find_propagate_unit(clauses, asgmt) {
-        vars.insert(var);
+fn unit_propagate_all(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> HashSet<clauses::Atom> {
+    let mut atoms: HashSet<clauses::Atom> = HashSet::new();
+    while let Some(atom) = try_find_propagate_unit(clauses, asgmt) {
+        atoms.insert(atom);
     }
-    vars
+    atoms
 }
 
-// Assumption: var is not bound
+// Assumption: atom is not bound
 // Assumption: cnf is normal
-fn purity(var: cnf::Var, clauses: &cnf::Cnf) -> Option<bool> {
+fn purity(atom: clauses::Atom, clauses: &clauses::Cnf) -> Option<bool> {
     let mut occurs_pos = false;
     let mut occurs_neg = false;
-    for clause in clauses {
-        for literal in clause {
-            if literal.var() == var {
+    for clause in clauses.iter() {
+        for literal in clause.iter() {
+            if literal.atom() == atom {
                 if literal.positive() {
                     if occurs_neg {
                         return None
@@ -68,71 +68,71 @@ fn purity(var: cnf::Var, clauses: &cnf::Cnf) -> Option<bool> {
     } else if occurs_neg {
         Some(false)
     } else {
-        // If we want to add the assumption that var is bound, then this should
+        // If we want to add the assumption that atom is bound, then this should
         // instead panic (due to assumption violation).
         None
     }
 }
 
-fn try_find_eliminate_pure_literal(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> Option<cnf::Var> {
-    let free = cnf::free_vars(clauses, asgmt);
+fn try_find_eliminate_pure_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> Option<clauses::Atom> {
+    let free = clauses.free_atoms(asgmt);
     // println!("free: {:#?}", free);
-    for var in free {
-        // println!("var: {:#?}", var);
-        if let Some(val) = purity(var, clauses) {
-            println!("var: {} found to have purity: {}", var, val);
-            asgmt.insert(var, val);
-            return Some(var)
+    for atom in free {
+        // println!("atom: {:#?}", atom);
+        if let Some(val) = purity(atom, clauses) {
+            println!("atom: {} found to have purity: {}", atom, val);
+            asgmt.insert(atom, val);
+            return Some(atom)
         }
     };
     None
 }
 
-fn pure_literal_elimination(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> HashSet<cnf::Var> {
-    let mut vars: HashSet<cnf::Var> = HashSet::new();
-    while let Some(var) = try_find_eliminate_pure_literal(clauses, asgmt) {
-        vars.insert(var);
+fn pure_literal_elimination(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> HashSet<clauses::Atom> {
+    let mut atoms: HashSet<clauses::Atom> = HashSet::new();
+    while let Some(atom) = try_find_eliminate_pure_literal(clauses, asgmt) {
+        atoms.insert(atom);
     }
-    vars
+    atoms
 }
 
 
-fn bool_propagate(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> HashSet<cnf::Var> {
-    let mut vars: HashSet<cnf::Var> = HashSet::new();
+fn bool_propagate(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> HashSet<clauses::Atom> {
+    let mut atoms: HashSet<clauses::Atom> = HashSet::new();
     loop {
-        // TODO: remove vars before returning None
-        let new_vars_unit = unit_propagate_all(clauses, asgmt);
-        let new_vars_pure = pure_literal_elimination(clauses, asgmt);
-        if new_vars_unit.is_empty() && new_vars_pure.is_empty() {
-            return vars;
+        // TODO: remove atoms before returning None
+        let new_atoms_unit = unit_propagate_all(clauses, asgmt);
+        let new_atoms_pure = pure_literal_elimination(clauses, asgmt);
+        if new_atoms_unit.is_empty() && new_atoms_pure.is_empty() {
+            return atoms;
         }
-        vars.extend(new_vars_unit.into_iter().chain(new_vars_pure));
+        atoms.extend(new_atoms_unit.into_iter().chain(new_atoms_pure));
     }
 }
 
+// use clauses::Clause::IntoIterator;
 
 // Assumption: There exists at least one literal in clauses
-fn choose_literal(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> cnf::Literal {
+fn choose_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> clauses::Literal {
     // This is of course the spot to try heuristics. For now, we arbitrarily
     // choose the first literal we come across.
-    let bound = cnf::bound_vars(asgmt);
+    let bound = clauses::Cnf::bound_atoms(asgmt);
     clauses.iter()
-        .flatten()
-        .filter(|literal| !bound.contains(&literal.var()))
+        .flat_map(|clause| clause.iter().filter(|literal| !bound.contains(&literal.atom())))
         .cloned()
         .next()
         .unwrap()
 }
 
 
-fn dpll(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> bool {
+fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> bool {
     // println!("asgmt (start of round): {:?}", asgmt);
-    let new_vars = bool_propagate(clauses, asgmt);
+    let new_atoms = bool_propagate(clauses, asgmt);
     // println!("asgmt (post-propagate): {:?}", asgmt);
 
-    if let Some(val) = cnf::eval_cnf(clauses, asgmt) {
+    if let Some(val) = clauses.eval_cnf(asgmt) {
         if !val {
-            for new in new_vars {
+            for new in new_atoms {
                 asgmt.remove(&new);
             }
         }
@@ -140,26 +140,26 @@ fn dpll(clauses: &cnf::Cnf, asgmt: &mut cnf::Asgmt) -> bool {
     }
 
     let literal = choose_literal(clauses, asgmt);
-    let var = literal.var();
+    let atom = literal.atom();
     let val = literal.positive();
 
-    asgmt.insert(var, val);
+    asgmt.insert(atom, val);
     if dpll(clauses, asgmt) {
         return true
     }
-    asgmt.insert(var, !val);
+    asgmt.insert(atom, !val);
     if dpll(clauses, asgmt) {
         return true
     }
-    asgmt.remove(&var);
-    for new in new_vars {
+    asgmt.remove(&atom);
+    for new in new_atoms {
         asgmt.remove(&new);
     }
     false
 }
 
 
-pub fn sat(clauses: &cnf::Cnf) -> Option<cnf::Asgmt> {
+pub fn sat(clauses: &clauses::Cnf) -> Option<clauses::Asgmt> {
     let mut asgmt = HashMap::new();
     if dpll(clauses, &mut asgmt) {
         Some(asgmt)
