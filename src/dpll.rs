@@ -83,7 +83,7 @@ fn try_find_eliminate_pure_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::
     let free = clauses.free_atoms(asgmt);
     // println!("free: {:#?}", free);
     for atom in free {
-        // println!("atom: {:#?}", atom);
+        // println!("atom: {}", atom);
         if let Some(val) = purity(atom, clauses) {
             println!("atom: {} found to have purity: {}", atom, val);
             asgmt.insert(atom, val);

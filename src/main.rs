@@ -37,7 +37,7 @@ fn empty_sat() {
     let cnf = clauses::Cnf::new();
     let result = dpll::sat(&cnf);
     if let Some(asgmt) = &result {
-        println!("sat: {:#?}", asgmt);
+        println!("sat: {}", asgmt);
     } else {
         println!("unsat");
     }
@@ -50,7 +50,7 @@ fn singleton_sat() {
     let cnf: clauses::Cnf = clauses::Cnf::from(vec![vec![clauses::Literal::new(true, atom)]]);
     let result = dpll::sat(&cnf);
     if let Some(asgmt) = &result {
-        println!("sat: {:#?}", asgmt);
+        println!("sat: {}", asgmt);
     } else {
         println!("unsat");
     }
@@ -66,7 +66,7 @@ fn trivial_noncontradiction() {
     ]);
     let result = dpll::sat(&cnf);
     if let Some(asgmt) = &result {
-        println!("sat: {:#?}", asgmt);
+        println!("sat: {}", asgmt);
     } else {
         println!("unsat");
     }

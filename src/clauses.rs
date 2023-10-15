@@ -56,6 +56,13 @@ impl Asgmt {
     }
 }
 
+impl fmt::Display for Asgmt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{{}}}", itertools::join(self.0.iter().map(|(&atom, &pos)| Literal::new(pos, atom)), ","))
+    }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // A positive or negative atom

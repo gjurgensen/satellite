@@ -58,7 +58,7 @@ pub fn read_dimacs_check_sat_and_print<P>(path: P) -> Result<Option<clauses::Asg
 where P: AsRef<path::Path> {
     let asgmt: Option<clauses::Asgmt> = read_dimacs_and_check_sat(path)?;
     if let Some(asgmt) = &asgmt {
-        println!("sat: {:#?}", asgmt);
+        println!("sat: {}", asgmt);
     } else {
         println!("unsat");
     }
