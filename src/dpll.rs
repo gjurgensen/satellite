@@ -133,45 +133,50 @@ fn choose_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> clauses
 }
 
 
-// TODO: rewrite recursion into a loop
 fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> bool {
-    let new_atoms = bool_propagate(clauses, asgmt, log);
+    let mut stack: Vec<(clauses::Literal, HashSet<clauses::Atom>)> = Vec::new();
 
-    if let Some(val) = clauses.eval_cnf(asgmt) {
-        if !val {
-            for new in new_atoms {
-                asgmt.remove(&new);
+    bool_propagate(clauses, asgmt, log);
+
+    loop {
+        if let Some(val) = clauses.eval_cnf(asgmt) {
+            if val {
+                return true
+            };
+            match stack.pop() {
+                None => return false,
+                Some((assumed, consquences)) => {
+                    if log {
+                        println!("Assumption {} failed, assuming its inverse", assumed);
+                    }
+                    // Note: there is not a good way to print when an assumption
+                    // fails in both directions, as this is implicit; the second
+                    // assignment is treated as a consquence like the propagate
+                    // variables.
+                    for new in consquences {
+                        asgmt.remove(&new);
+                    };
+                    let assumed_atom = assumed.atom();
+                    asgmt.insert(assumed_atom, !assumed.positive());
+                    if let Some((_, prev_consequences)) = stack.last_mut() {
+                        prev_consequences.insert(assumed_atom);
+                        prev_consequences.extend(bool_propagate(clauses, asgmt, log));
+                    };
+                    continue
+                },
             }
-        }
-        return val
-    }
+        };
 
-    let literal = choose_literal(clauses, asgmt);
-    let atom = literal.atom();
-    let val = literal.positive();
+        let literal = choose_literal(clauses, asgmt);
+        let atom = literal.atom();
+        let val = literal.positive();
 
-    if log {
-        println!("Adding assumption: {}", literal);
-    };
-    asgmt.insert(atom, val);
-    if dpll(clauses, asgmt, log) {
-        return true
+        if log {
+            println!("Adding assumption: {}", literal);
+        };
+        asgmt.insert(atom, val);
+        stack.push((literal, bool_propagate(clauses, asgmt, log)));
     }
-    if log {
-        println!("Assumption {} failed, assuming its inverse", literal);
-    };
-    asgmt.insert(atom, !val);
-    if dpll(clauses, asgmt, log) {
-        return true
-    }
-    if log {
-        println!("Any assignment of {} yield UNSAT; backtracking", literal.atom());
-    };
-    asgmt.remove(&atom);
-    for new in new_atoms {
-        asgmt.remove(&new);
-    }
-    false
 }
 
 
