@@ -7,12 +7,15 @@ use crate::clauses;
 use crate::dpll;
 
 
-// TODO: handle comments
 pub fn read_dimacs<P>(path: P) -> Option<clauses::Cnf>
 where P: AsRef<path::Path> {
     let file = fs::File::open(path).ok()?;
-    let mut lines = io::BufReader::new(file).lines();
-    let line = lines.next()?.ok()?;
+    let mut lines = io::BufReader::new(file)
+        .lines()
+        .flatten()
+        .filter(|str| str.chars().next().is_some_and(|c| c != 'c'));
+    // let line = lines.next()?.ok()?;
+    let line = lines.next()?;
     println!("Reading first line.");
     let (num_vars, mut num_clauses) = match line.split_whitespace().collect_tuple()? {
         ("p", "cnf", num_vars, num_clauses) =>
@@ -27,7 +30,7 @@ where P: AsRef<path::Path> {
             return Some(clauses)
         }
         num_clauses -= 1;
-        let line = line.ok()?;
+        // let line = line.ok()?;
         let mut clause = clauses::Clause::new();
         for lit_str in line.split_whitespace() {
             let num = lit_str.parse::<i32>().ok()?;
