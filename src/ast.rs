@@ -29,7 +29,7 @@ impl fmt::Display for Atom {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// A partial mapping from atoms to values
+// A partial mapping from atoms to phases
 // pub type Asgmt = HashMap<Atom, bool>;
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Asgmt (HashMap<Atom, bool>);
@@ -43,8 +43,8 @@ impl Asgmt {
         self.0.get(atom).map(|&b| b)
     }
 
-    pub fn insert(&mut self, atom: Atom, positive: bool) -> Option<bool> {
-        self.0.insert(atom, positive)
+    pub fn insert(&mut self, atom: Atom, phase: bool) -> Option<bool> {
+        self.0.insert(atom, phase)
     }
 
     pub fn remove(&mut self, atom: &Atom) -> Option<bool> {
@@ -73,13 +73,13 @@ pub struct Literal (u32);
 const LITERAL_MASK : u32 = 1 << 31;
 
 impl Literal {
-    pub fn new(positive: bool, atom: Atom) -> Self {
+    pub fn new(phase: bool, atom: Atom) -> Self {
         Self (
-            if positive {atom.0} else {atom.0 | LITERAL_MASK}
+            if phase {atom.0} else {atom.0 | LITERAL_MASK}
         )
     }
 
-    pub fn positive(&self) -> bool {
+    pub fn phase(&self) -> bool {
         (self.0 & LITERAL_MASK) == 0
     }
 
@@ -90,7 +90,7 @@ impl Literal {
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}", if self.positive() { "" } else { "!" }, self.atom())
+        write!(f, "{}{}", if self.phase() { "" } else { "!" }, self.atom())
     }
 }
 
@@ -127,9 +127,9 @@ impl Clause {
     pub fn eval_clause(&self, asgmt: &Asgmt) -> Option<bool> {
         // println!("Evaluating clause {} under assignment {:?}", clause, asgmt);
         for literal in self.literals.iter() {
-            let pos = literal.positive();
-            let val = asgmt.get(&literal.atom())?;
-            if pos == val {
+            let pos = literal.phase();
+            let phase = asgmt.get(&literal.atom())?;
+            if pos == phase {
                 return Some(true)
             }
         }

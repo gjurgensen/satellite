@@ -1,17 +1,17 @@
 use std::collections::HashSet;
 
-use crate::clauses;
+use crate::ast;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
 // Assumption: clause is normal
-fn get_literal_when_unit(clause: &clauses::Clause, asgmt: &clauses::Asgmt) -> Option<clauses::Literal> {
-    let mut unit : Option<clauses::Literal> = None;
+fn get_literal_when_unit(clause: &ast::Clause, asgmt: &ast::Asgmt) -> Option<ast::Literal> {
+    let mut unit : Option<ast::Literal> = None;
     for literal in clause.iter() {
         match asgmt.get(&literal.atom()) {
-            Some(val) => {
-                if val == literal.positive() {
+            Some(phase) => {
+                if phase == literal.phase() {
                     return None;
                 }
             },
@@ -24,23 +24,23 @@ fn get_literal_when_unit(clause: &clauses::Clause, asgmt: &clauses::Asgmt) -> Op
     unit
 }
 
-fn try_find_propagate_unit(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> Option<clauses::Atom> {
+fn try_find_propagate_unit(clauses: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> Option<ast::Atom> {
     for clause in clauses.iter() {
         if let Some(literal) = get_literal_when_unit(&clause, asgmt) {
             let atom = literal.atom();
-            let positive = literal.positive();
+            let phase = literal.phase();
             if log {
                 println!("Unit propagating {}", literal);
             };
-            asgmt.insert(atom, positive);
+            asgmt.insert(atom, phase);
             return Some(atom)
         }
     }
     None
 }
 
-fn unit_propagate_all(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> HashSet<clauses::Atom> {
-    let mut atoms: HashSet<clauses::Atom> = HashSet::new();
+fn unit_propagate_all(clauses: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> HashSet<ast::Atom> {
+    let mut atoms: HashSet<ast::Atom> = HashSet::new();
     while let Some(atom) = try_find_propagate_unit(clauses, asgmt, log) {
         atoms.insert(atom);
     }
@@ -49,13 +49,13 @@ fn unit_propagate_all(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: b
 
 // Assumption: atom is not bound
 // Assumption: cnf is normal
-fn purity(atom: clauses::Atom, clauses: &clauses::Cnf) -> Option<bool> {
+fn purity(atom: ast::Atom, clauses: &ast::Cnf) -> Option<bool> {
     let mut occurs_pos = false;
     let mut occurs_neg = false;
     for clause in clauses.iter() {
         for literal in clause.iter() {
             if literal.atom() == atom {
-                if literal.positive() {
+                if literal.phase() {
                     if occurs_neg {
                         return None
                     }
@@ -81,24 +81,24 @@ fn purity(atom: clauses::Atom, clauses: &clauses::Cnf) -> Option<bool> {
     }
 }
 
-fn try_find_eliminate_pure_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> Option<clauses::Atom> {
+fn try_find_eliminate_pure_literal(clauses: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> Option<ast::Atom> {
     let free = clauses.free_atoms(asgmt);
     // println!("free: {:#?}", free);
     for atom in free {
         // println!("atom: {}", atom);
-        if let Some(val) = purity(atom, clauses) {
+        if let Some(phase) = purity(atom, clauses) {
             if log {
-                println!("atom: {} found to have purity: {}", atom, val);
+                println!("atom: {} found to have purity: {}", atom, phase);
             };
-            asgmt.insert(atom, val);
+            asgmt.insert(atom, phase);
             return Some(atom)
         }
     };
     None
 }
 
-fn pure_literal_elimination(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> HashSet<clauses::Atom> {
-    let mut atoms: HashSet<clauses::Atom> = HashSet::new();
+fn pure_literal_elimination(clauses: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> HashSet<ast::Atom> {
+    let mut atoms: HashSet<ast::Atom> = HashSet::new();
     while let Some(atom) = try_find_eliminate_pure_literal(clauses, asgmt, log) {
         atoms.insert(atom);
     }
@@ -106,8 +106,8 @@ fn pure_literal_elimination(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, 
 }
 
 
-fn bool_propagate(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> HashSet<clauses::Atom> {
-    let mut atoms: HashSet<clauses::Atom> = HashSet::new();
+fn bool_propagate(clauses: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> HashSet<ast::Atom> {
+    let mut atoms: HashSet<ast::Atom> = HashSet::new();
     loop {
         // TODO: remove atoms before returning None
         let new_atoms_unit = unit_propagate_all(clauses, asgmt, log);
@@ -121,7 +121,7 @@ fn bool_propagate(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool)
 
 
 // Assumption: There exists at least one literal in clauses
-fn choose_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> clauses::Literal {
+fn choose_literal(clauses: &ast::Cnf, asgmt: &mut ast::Asgmt) -> ast::Literal {
     // This is of course the spot to try heuristics. For now, we arbitrarily
     // choose the first literal we come across.
     let bound = asgmt.atoms();
@@ -133,14 +133,14 @@ fn choose_literal(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt) -> clauses
 }
 
 
-fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> bool {
-    let mut stack: Vec<(clauses::Literal, HashSet<clauses::Atom>)> = Vec::new();
+fn dpll(clauses: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> bool {
+    let mut stack: Vec<(ast::Literal, HashSet<ast::Atom>)> = Vec::new();
 
     bool_propagate(clauses, asgmt, log);
 
     loop {
-        if let Some(val) = clauses.eval_cnf(asgmt) {
-            if val {
+        if let Some(phase) = clauses.eval_cnf(asgmt) {
+            if phase {
                 return true
             };
             match stack.pop() {
@@ -157,7 +157,7 @@ fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> bool {
                         asgmt.remove(&new);
                     };
                     let assumed_atom = assumed.atom();
-                    asgmt.insert(assumed_atom, !assumed.positive());
+                    asgmt.insert(assumed_atom, !assumed.phase());
                     if let Some((_, prev_consequences)) = stack.last_mut() {
                         prev_consequences.insert(assumed_atom);
                         prev_consequences.extend(bool_propagate(clauses, asgmt, log));
@@ -169,19 +169,19 @@ fn dpll(clauses: &clauses::Cnf, asgmt: &mut clauses::Asgmt, log: bool) -> bool {
 
         let literal = choose_literal(clauses, asgmt);
         let atom = literal.atom();
-        let val = literal.positive();
+        let phase = literal.phase();
 
         if log {
             println!("Adding assumption: {}", literal);
         };
-        asgmt.insert(atom, val);
+        asgmt.insert(atom, phase);
         stack.push((literal, bool_propagate(clauses, asgmt, log)));
     }
 }
 
 
-pub fn sat(clauses: &clauses::Cnf, log: bool) -> Option<clauses::Asgmt> {
-    let mut asgmt = clauses::Asgmt::new();
+pub fn sat(clauses: &ast::Cnf, log: bool) -> Option<ast::Asgmt> {
+    let mut asgmt = ast::Asgmt::new();
     if dpll(clauses, &mut asgmt, log) {
         Some(asgmt)
     } else {

@@ -1,6 +1,6 @@
 use std::env;
 
-pub mod clauses;
+pub mod ast;
 pub mod dimacs;
 pub mod dpll;
 
@@ -18,23 +18,23 @@ fn main() {
 
 #[test]
 fn test_literal() {
-    let pos = true;
-    let atom = clauses::Atom::new(42);
-    let literal = clauses::Literal::new(pos, atom);
-    println!("Literal::new({}, {}) = {}", pos, atom, literal);
-    assert_eq!(pos, literal.positive());
+    let phase = true;
+    let atom = ast::Atom::new(42);
+    let literal = ast::Literal::new(phase, atom);
+    println!("Literal::new({}, {}) = {}", phase, atom, literal);
+    assert_eq!(phase, literal.phase());
     assert_eq!(atom, literal.atom());
 
-    let pos = false;
-    let literal = clauses::Literal::new(pos, atom);
-    println!("Literal::new({}, {}) = {}", pos, atom, literal);
-    assert_eq!(pos, literal.positive());
+    let phase = false;
+    let literal = ast::Literal::new(phase, atom);
+    println!("Literal::new({}, {}) = {}", phase, atom, literal);
+    assert_eq!(phase, literal.phase());
     assert_eq!(atom, literal.atom());
 }
 
 #[test]
 fn empty_sat() {
-    let cnf = clauses::Cnf::new();
+    let cnf = ast::Cnf::new();
     let result = dpll::sat(&cnf, true);
     if let Some(asgmt) = &result {
         println!("sat: {}", asgmt);
@@ -46,8 +46,8 @@ fn empty_sat() {
 
 #[test]
 fn singleton_sat() {
-    let atom = clauses::Atom::new(0);
-    let cnf: clauses::Cnf = clauses::Cnf::from(vec![vec![clauses::Literal::new(true, atom)]]);
+    let atom = ast::Atom::new(0);
+    let cnf: ast::Cnf = ast::Cnf::from(vec![vec![ast::Literal::new(true, atom)]]);
     let result = dpll::sat(&cnf, true);
     if let Some(asgmt) = &result {
         println!("sat: {}", asgmt);
@@ -59,10 +59,10 @@ fn singleton_sat() {
 
 #[test]
 fn trivial_noncontradiction() {
-    let atom = clauses::Atom::new(0);
-    let cnf: clauses::Cnf = clauses::Cnf::from(vec![
-        vec![clauses::Literal::new(true, atom)],
-        vec![clauses::Literal::new(false, atom)]
+    let atom = ast::Atom::new(0);
+    let cnf: ast::Cnf = ast::Cnf::from(vec![
+        vec![ast::Literal::new(true, atom)],
+        vec![ast::Literal::new(false, atom)]
     ]);
     let result = dpll::sat(&cnf, true);
     if let Some(asgmt) = &result {
