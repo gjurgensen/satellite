@@ -66,7 +66,7 @@ impl fmt::Display for Asgmt {
 ////////////////////////////////////////////////////////////////////////////////
 
 // A positive or negative atom
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
 // The MSB represents the sign, and the rest represent the atom
 pub struct Literal (u32);
 
@@ -86,6 +86,10 @@ impl Literal {
     pub fn atom(&self) -> Atom {
         Atom::new(self.0 & !LITERAL_MASK)
     }
+
+    pub fn inversion(&self) -> Self {
+        Self::new(!self.phase(), self.atom())
+    }
 }
 
 impl fmt::Display for Literal {
@@ -99,7 +103,7 @@ impl fmt::Display for Literal {
 
 // A disjunction of literals
 // TODO: add normalize and is_normal functions
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub struct Clause {
     literals: Vec<Literal>,
 }
@@ -124,7 +128,7 @@ impl Clause {
     }
 
     // Evaluates clause when fully assigned
-    pub fn eval_clause(&self, asgmt: &Asgmt) -> Option<bool> {
+    pub fn eval(&self, asgmt: &Asgmt) -> Option<bool> {
         // println!("Evaluating clause {} under assignment {:?}", clause, asgmt);
         for literal in self.literals.iter() {
             let pos = literal.phase();
@@ -134,6 +138,13 @@ impl Clause {
             }
         }
         Some(false)
+    }
+
+    pub fn unassigned_literals<'a, 'b, 'c>(&'a self, asgmt: &'b Asgmt) -> impl Iterator<Item = &'c Literal>
+        where 'a: 'c, 'b: 'c
+    {
+        self.iter()
+            .filter(|lit| asgmt.get(&lit.atom()).is_none())
     }
 }
 
@@ -200,22 +211,13 @@ impl Cnf {
         self.free_bound_atoms_pair(asgmt).0
     }
 
-    // fn get_unbound_literal(&self, asgmt: &Asgmt) -> Literal {
-    //     let bound = Self::bound_atoms(asgmt);
-    //     self.iter()
-    //         .flat_map(|clause| clause.iter().filter(|literal| !bound.contains(&literal.atom())))
-    //         .cloned()
-    //         .next()
-    //         .unwrap()
-    // }
-
     // Evaluates cnf when sufficiently assigned (evaluates a fully assigned clause,
     // then true if all true, false if exists false, undefined otherwise).
-    pub fn eval_cnf(&self, asgmt: &Asgmt) -> Option<bool> {
+    pub fn eval(&self, asgmt: &Asgmt) -> Option<bool> {
         // println!("Evaluating cnf {} under assignment {:?}", cnf, asgmt);
         let mut under_assigned = false;
         for clause in self.clauses.iter() {
-            if let Some(val) = clause.eval_clause(asgmt) {
+            if let Some(val) = clause.eval(asgmt) {
                 if !val {
                     return Some(false)
                 }

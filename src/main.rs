@@ -6,11 +6,13 @@ pub mod dpll;
 
 fn main() {
     if let Some(path) = env::args().collect::<Vec<_>>().get(1) {
-        if let Err(err) = dimacs::read_dimacs_check_sat_and_print(path, true) {
+        // if let Err(err) = dimacs::read_dimacs_check_sat_and_print(path, true) {
+        if let Err(err) = dimacs::read_dimacs_check_sat_and_print(path, false) {
             eprintln!("Error: {}", err);
         }
+    } else {
+        eprintln!("Expecting commandline argument specifying a DIMACS file.");
     }
-    eprintln!("Expecting commandline argument specifying a DIMACS file.");
 }
 
 
@@ -101,7 +103,6 @@ fn dimacs_uf20_01000() {
     }
 }
 
-// Takes 59s
 #[test]
 fn dimacs_uf100_01() {
     if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf100-430/uf100-01.cnf", false) {
@@ -109,7 +110,6 @@ fn dimacs_uf100_01() {
     }
 }
 
-// Takes 187s
 #[test]
 fn dimacs_uuf100_01() {
     if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uuf100-430/uuf100-01.cnf", false) {
