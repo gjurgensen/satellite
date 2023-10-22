@@ -30,13 +30,13 @@ fn get_literal_when_unit(clause: &ast::Clause, asgmt: &ast::Asgmt) -> Result<ast
     unit.ok_or(EvalResult::Unsat)
 }
 
-fn try_find_propagate_unit(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> Option<ast::Atom> {
+fn try_find_propagate_unit(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> Option<ast::Atom> {
     for clause in cnf.iter() {
         if let Ok(literal) = get_literal_when_unit(&clause, asgmt) {
             let atom = literal.atom();
             let phase = literal.phase();
-            if log {
-                println!("Unit propagating {}", literal);
+            if 0 < verbosity {
+                log::info!("Unit propagating {}", literal);
             };
             asgmt.insert(atom, phase);
             return Some(atom)
@@ -45,9 +45,9 @@ fn try_find_propagate_unit(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) ->
     None
 }
 
-fn unit_propagate_all(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> HashSet<ast::Atom> {
+fn unit_propagate_all(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> HashSet<ast::Atom> {
     let mut atoms: HashSet<ast::Atom> = HashSet::new();
-    while let Some(atom) = try_find_propagate_unit(cnf, asgmt, log) {
+    while let Some(atom) = try_find_propagate_unit(cnf, asgmt, verbosity) {
         atoms.insert(atom);
     }
     atoms
@@ -87,14 +87,12 @@ fn purity(atom: ast::Atom, cnf: &ast::Cnf) -> Option<bool> {
     }
 }
 
-fn try_find_eliminate_pure_literal(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> Option<ast::Atom> {
+fn try_find_eliminate_pure_literal(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> Option<ast::Atom> {
     let free = cnf.free_atoms(asgmt);
-    // println!("free: {:#?}", free);
     for atom in free {
-        // println!("atom: {}", atom);
         if let Some(phase) = purity(atom, cnf) {
-            if log {
-                println!("atom: {} found to have purity: {}", atom, phase);
+            if 0 < verbosity {
+                log::info!("Atom: {} found to have purity: {}", atom, phase);
             };
             asgmt.insert(atom, phase);
             return Some(atom)
@@ -103,21 +101,21 @@ fn try_find_eliminate_pure_literal(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: 
     None
 }
 
-fn pure_literal_elimination(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> HashSet<ast::Atom> {
+fn pure_literal_elimination(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> HashSet<ast::Atom> {
     let mut atoms: HashSet<ast::Atom> = HashSet::new();
-    while let Some(atom) = try_find_eliminate_pure_literal(cnf, asgmt, log) {
+    while let Some(atom) = try_find_eliminate_pure_literal(cnf, asgmt, verbosity) {
         atoms.insert(atom);
     }
     atoms
 }
 
 
-fn bool_propagate(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> HashSet<ast::Atom> {
-    unit_propagate_all(cnf, asgmt, log)
+fn bool_propagate(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> HashSet<ast::Atom> {
+    unit_propagate_all(cnf, asgmt, verbosity)
 }
 
-fn preprocess(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) {
-    pure_literal_elimination(cnf, asgmt, log);
+fn preprocess(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) {
+    pure_literal_elimination(cnf, asgmt, verbosity);
 }
 
 // Assumption: There exists at least one literal in cnf
@@ -153,7 +151,7 @@ fn choose_watched_literals(clause: &ast::Clause, asgmt: &ast::Asgmt) -> (ast::Li
 }
 
 impl<'a> Watchers<'a> {
-    fn new(cnf: &'a ast::Cnf, asgmt: &ast::Asgmt) -> Self {
+    fn new(cnf: &'a ast::Cnf, asgmt: &ast::Asgmt, verbosity: usize) -> Self {
         let mut watchers = Self {
             clauses: HashMap::new(),
             watchers: HashMap::new(),
@@ -161,7 +159,9 @@ impl<'a> Watchers<'a> {
         for clause in cnf.iter() {
             let (lit1, lit2) = choose_watched_literals(clause, asgmt);
             watchers.set(lit1, lit2, clause);
-            // println!("Watching literal {} and {} for clause {}", lit1, lit2, clause);
+            if 2 < verbosity {
+                log::info!("Watching literal {} and {} for clause {}", lit1, lit2, clause);
+            }
         };
         watchers
     }
@@ -242,7 +242,7 @@ impl<'a> Watchers<'a> {
 
 
 // true means that unsat clause was found
-fn propagate_with_watcher(_cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, literal: ast::Literal, watchers: &mut Watchers, log: bool)
+fn propagate_with_watcher(_cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, literal: ast::Literal, watchers: &mut Watchers, verbosity: usize)
     -> (HashSet<ast::Atom>, bool)
 {
     let mut acc = HashSet::new();
@@ -267,22 +267,25 @@ fn propagate_with_watcher(_cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, literal: ast:
         new_lits = HashSet::new();
 
         for (watched_lit, clause) in seen_clauses {
-            // println!("Considering clause {}, watched by {}", clause, watched_lit);
+            if 3 < verbosity {
+                log::info!("Considering clause {}, watched by {}", clause, watched_lit);
+            }
             match get_literal_when_unit(clause, asgmt) {
                 Ok(lit) => {
                     let atom = lit.atom();
                     asgmt.insert(atom, lit.phase());
-                    if log {
-                        println!("Unit propagating {} (by clause {})", lit, clause);
+                    if 1 < verbosity {
+                        log::info!("Unit propagating {} (by clause {})", lit, clause);
+                    } else if 0 < verbosity {
+                        log::info!("Unit propagating {}", lit);
                     };
                     new_lits.insert(lit);
                 }
                 Err(EvalResult::Sat) => continue,
                 Err(EvalResult::Unsat) => {
-                    if log {
-                        println!("Clause {} is false!", clause);
-                        // Problem is that consequences aren't being properly rolled back
-                        println!("Assignment: {}", asgmt);
+                    if 3 < verbosity {
+                        log::info!("Clause {} is false!", clause);
+                        log::info!("Assignment: {}", asgmt);
                     }
                     acc.extend(new_lits.iter().map(|lit| lit.atom()));
                     return (acc, true)
@@ -302,8 +305,8 @@ fn propagate_with_watcher(_cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, literal: ast:
                     {
                         Some(new_watcher) => {
                             watchers.replace(watched_lit.clone(), new_watcher, clause);
-                            if log {
-                                println!("Replacing watcher {} with {} (in clause {})", watched_lit, new_watcher, clause);
+                            if 2 < verbosity {
+                                log::info!("Replacing watcher {} with {} (in clause {})", watched_lit, new_watcher, clause);
                             }
                         },
                         None => {
@@ -319,14 +322,13 @@ fn propagate_with_watcher(_cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, literal: ast:
 
 
 
-fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> bool {
+fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> bool {
     let mut stack: Vec<(ast::Literal, HashSet<ast::Atom>)> = Vec::new();
 
-    preprocess(cnf, asgmt, log);
-    bool_propagate(cnf, asgmt, log);
+    preprocess(cnf, asgmt, verbosity);
+    bool_propagate(cnf, asgmt, verbosity);
 
-    let mut watchers = Watchers::new(cnf, asgmt);
-    // println!("Watcher map: {:#?}", watched_literal_map);
+    let mut watchers = Watchers::new(cnf, asgmt, verbosity);
 
     loop {
         if let Some(phase) = cnf.eval(asgmt) {
@@ -336,32 +338,31 @@ fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> bool {
             match stack.pop() {
                 None => return false,
                 Some((assumed, consquences)) => {
-                    if log {
-                        println!("Assignment: {}", asgmt);
-                        println!("Assumption {} failed, assuming its inverse", assumed);
+                    if 0 < verbosity {
+                        log::info!("Assumption {} failed, assuming its inverse", assumed);
                     }
-                    // Note: there is not a good way to print when an assumption
+                    // Note: there is not a good way to log when an assumption
                     // fails in both directions, as this is implicit; the second
                     // assignment is treated as a consquence like the propagate
                     // variables.
                     for new in consquences {
-                        // TODO: need verbosity levels
-                        // if log {
-                        //     println!("Removing consequent {}", new);
-                        // };
+                        if 3 < verbosity {
+                            log::info!("Removing consequent {}", new);
+                        };
                         asgmt.remove(&new);
                     };
-                    if log {
-                        println!("Assignment after rolling back changes and assuming inverse: {}", asgmt);
+                    if 3 < verbosity {
+                        log::info!("Assignment after rolling back changes and assuming inverse: {}", asgmt);
                     }
                     let assumed_atom = assumed.atom();
                     asgmt.insert(assumed_atom, !assumed.phase());
                     if let Some((_, prev_consequences)) = stack.last_mut() {
                         prev_consequences.insert(assumed_atom);
-                        let (prop_consequences, falsified) = propagate_with_watcher(cnf, asgmt, assumed.inversion(), &mut watchers, log);
+                        let (prop_consequences, falsified) =
+                            propagate_with_watcher(cnf, asgmt, assumed.inversion(), &mut watchers, verbosity);
                         prev_consequences.extend(prop_consequences);
-                        if log && falsified {
-                            println!("Expecting immediate backtrack (after pop)")
+                        if 3 < verbosity && falsified {
+                            log::info!("Expecting immediate backtrack (after pop)")
                             // TODO: we know the cnf is false, we should deal with it here somehow
                         }
                     };
@@ -374,23 +375,23 @@ fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, log: bool) -> bool {
         let atom = literal.atom();
         let phase = literal.phase();
 
-        if log {
-            println!("Adding assumption: {}", literal);
+        if 0 < verbosity {
+            log::info!("Adding assumption: {}", literal);
         };
         asgmt.insert(atom, phase);
-        let (prop_consequences, falsified) = propagate_with_watcher(cnf, asgmt, literal, &mut watchers, log);
+        let (prop_consequences, falsified) = propagate_with_watcher(cnf, asgmt, literal, &mut watchers, verbosity);
         stack.push((literal, prop_consequences));
-        if log && falsified {
-            println!("Expecting immediate backtrack")
+        if 3 < verbosity && falsified {
+            log::info!("Expecting immediate backtrack")
             // TODO: we know the cnf is false, we should deal with it here somehow
         }
     }
 }
 
 
-pub fn sat(cnf: &ast::Cnf, log: bool) -> Option<ast::Asgmt> {
+pub fn sat(cnf: &ast::Cnf, verbosity: usize) -> Option<ast::Asgmt> {
     let mut asgmt = ast::Asgmt::new();
-    if dpll(cnf, &mut asgmt, log) {
+    if dpll(cnf, &mut asgmt, verbosity) {
         Some(asgmt)
     } else {
         None

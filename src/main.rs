@@ -9,7 +9,7 @@ pub mod dpll;
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
 struct Args {
-    /// Verbosity, 0-3
+    /// Verbosity, 0-4
     #[arg(short, long, default_value_t = 1)]
     verbosity: usize,
 
@@ -19,10 +19,12 @@ struct Args {
 
 
 fn main() {
+    env_logger::builder().filter_level(log::LevelFilter::Info).init();
+
     let args = Args::parse();
 
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print(args.file, 0 < args.verbosity) {
-        eprintln!("Error: {}", err);
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print(args.file, args.verbosity) {
+        log::error!("{}", err)
     }
 }
 
@@ -48,7 +50,7 @@ fn test_literal() {
 #[test]
 fn empty_sat() {
     let cnf = ast::Cnf::new();
-    let result = dpll::sat(&cnf, true);
+    let result = dpll::sat(&cnf, 2);
     if let Some(asgmt) = &result {
         println!("sat: {}", asgmt);
     } else {
@@ -61,7 +63,7 @@ fn empty_sat() {
 fn singleton_sat() {
     let atom = ast::Atom::new(0);
     let cnf: ast::Cnf = ast::Cnf::from(vec![vec![ast::Literal::new(true, atom)]]);
-    let result = dpll::sat(&cnf, true);
+    let result = dpll::sat(&cnf, 2);
     if let Some(asgmt) = &result {
         println!("sat: {}", asgmt);
     } else {
@@ -77,7 +79,7 @@ fn trivial_noncontradiction() {
         vec![ast::Literal::new(true, atom)],
         vec![ast::Literal::new(false, atom)]
     ]);
-    let result = dpll::sat(&cnf, true);
+    let result = dpll::sat(&cnf, 2);
     if let Some(asgmt) = &result {
         println!("sat: {}", asgmt);
     } else {
@@ -88,49 +90,49 @@ fn trivial_noncontradiction() {
 
 #[test]
 fn dimacs_mini() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini.cnf", true) {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini.cnf", 2) {
         eprintln!("Error: {}", err);
     }
 }
 
 #[test]
 fn dimacs_mini2() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini2.cnf", true) {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini2.cnf", 2) {
         eprintln!("Error: {}", err);
     }
 }
 
 #[test]
 fn dimacs_mini3() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini3.cnf", true) {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini3.cnf", 2) {
         eprintln!("Error: {}", err);
     }
 }
 
 #[test]
 fn dimacs_uf20_01000() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf20-01000.cnf", true) {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf20-01000.cnf", 2) {
         eprintln!("Error: {}", err);
     }
 }
 
 #[test]
 fn dimacs_uf100_01() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf100-430/uf100-01.cnf", false) {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf100-430/uf100-01.cnf", 1) {
         eprintln!("Error: {}", err);
     }
 }
 
 #[test]
 fn dimacs_uuf100_01() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uuf100-430/uuf100-01.cnf", false) {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uuf100-430/uuf100-01.cnf", 1) {
         eprintln!("Error: {}", err);
     }
 }
 
 #[test]
 fn dimacs_uf250_01() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf250/uf250-01.cnf", false) {
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf250/uf250-01.cnf", 0) {
         eprintln!("Error: {}", err);
     }
 }
