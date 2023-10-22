@@ -1,17 +1,28 @@
-use std::env;
+use clap::Parser;
 
 pub mod ast;
 pub mod dimacs;
 pub mod dpll;
 
+
+/// Satellite is a toy SAT solver
+#[derive(Parser, Debug)]
+#[command(about, long_about = None)]
+struct Args {
+    /// Verbosity, 0-3
+    #[arg(short, long, default_value_t = 1)]
+    verbosity: usize,
+
+    /// DIMACS file
+    file: std::path::PathBuf,
+}
+
+
 fn main() {
-    if let Some(path) = env::args().collect::<Vec<_>>().get(1) {
-        // if let Err(err) = dimacs::read_dimacs_check_sat_and_print(path, true) {
-        if let Err(err) = dimacs::read_dimacs_check_sat_and_print(path, false) {
-            eprintln!("Error: {}", err);
-        }
-    } else {
-        eprintln!("Expecting commandline argument specifying a DIMACS file.");
+    let args = Args::parse();
+
+    if let Err(err) = dimacs::read_dimacs_check_sat_and_print(args.file, 0 < args.verbosity) {
+        eprintln!("Error: {}", err);
     }
 }
 
