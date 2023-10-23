@@ -31,6 +31,12 @@ fn main() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// TODO: tests won't have logging enabled; this needs to be done with the command:
+//   env_logger::builder().filter_level(log::LevelFilter::Info).init();
+// Is there a way to have some code run before every test? (Something like
+// JUnit's @BeforeEach)
+
+
 #[test]
 fn test_literal() {
     let phase = true;

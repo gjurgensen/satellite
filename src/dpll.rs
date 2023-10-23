@@ -268,25 +268,25 @@ fn propagate_with_watcher(_cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, literal: ast:
 
         for (watched_lit, clause) in seen_clauses {
             if 3 < verbosity {
-                log::info!("Considering clause {}, watched by {}", clause, watched_lit);
-            }
+                log::info!("Considering clause {}, watched by {}", clause, watched_lit)
+            };
             match get_literal_when_unit(clause, asgmt) {
                 Ok(lit) => {
                     let atom = lit.atom();
                     asgmt.insert(atom, lit.phase());
                     if 1 < verbosity {
-                        log::info!("Unit propagating {} (by clause {})", lit, clause);
+                        log::info!("Unit propagating {} (by clause {})", lit, clause)
                     } else if 0 < verbosity {
-                        log::info!("Unit propagating {}", lit);
+                        log::info!("Unit propagating {}", lit)
                     };
                     new_lits.insert(lit);
-                }
+                },
                 Err(EvalResult::Sat) => continue,
                 Err(EvalResult::Unsat) => {
                     if 3 < verbosity {
                         log::info!("Clause {} is false!", clause);
-                        log::info!("Assignment: {}", asgmt);
-                    }
+                        log::info!("Assignment: {}", asgmt)
+                    };
                     acc.extend(new_lits.iter().map(|lit| lit.atom()));
                     return (acc, true)
                 },
@@ -321,9 +321,119 @@ fn propagate_with_watcher(_cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, literal: ast:
 }
 
 
+// fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> bool {
+//     let mut stack: Vec<(ast::Literal, HashSet<ast::Atom>)> = Vec::new();
+//
+//     preprocess(cnf, asgmt, verbosity);
+//     bool_propagate(cnf, asgmt, verbosity);
+//
+//     let mut watchers = Watchers::new(cnf, asgmt, verbosity);
+//
+//     loop {
+//         if let Some(phase) = cnf.eval(asgmt) {
+//             if phase {
+//                 return true
+//             };
+//             match stack.pop() {
+//                 None => return false,
+//                 Some((assumed, consquences)) => {
+//                     if 0 < verbosity {
+//                         log::info!("Assumption {} failed, assuming its inverse", assumed);
+//                     }
+//                     // Note: there is not a good way to log when an assumption
+//                     // fails in both directions, as this is implicit; the second
+//                     // assignment is treated as a consquence like the propagate
+//                     // variables.
+//                     for new in consquences {
+//                         if 3 < verbosity {
+//                             log::info!("Removing consequent {}", new);
+//                         };
+//                         asgmt.remove(&new);
+//                     };
+//                     if 3 < verbosity {
+//                         log::info!("Assignment after rolling back changes and assuming inverse: {}", asgmt);
+//                     }
+//                     let assumed_atom = assumed.atom();
+//                     asgmt.insert(assumed_atom, !assumed.phase());
+//                     if let Some((_, prev_consequences)) = stack.last_mut() {
+//                         prev_consequences.insert(assumed_atom);
+//                         let (prop_consequences, falsified) =
+//                             propagate_with_watcher(cnf, asgmt, assumed.inversion(), &mut watchers, verbosity);
+//                         prev_consequences.extend(prop_consequences);
+//                         if 3 < verbosity && falsified {
+//                             log::info!("Expecting immediate backtrack (after pop)")
+//                             // TODO: we know the cnf is false, we should deal with it here somehow
+//                         }
+//                     };
+//                     continue
+//                 },
+//             }
+//         };
+//
+//         let literal = choose_literal(cnf, asgmt);
+//         let atom = literal.atom();
+//         let phase = literal.phase();
+//
+//         if 0 < verbosity {
+//             log::info!("Adding assumption: {}", literal);
+//         };
+//         asgmt.insert(atom, phase);
+//         let (prop_consequences, falsified) = propagate_with_watcher(cnf, asgmt, literal, &mut watchers, verbosity);
+//         stack.push((literal, prop_consequences));
+//         if 3 < verbosity && falsified {
+//             log::info!("Expecting immediate backtrack")
+//             // TODO: we know the cnf is false, we should deal with it here somehow
+//         }
+//     }
+// }
+
+// Returns true if successfully backtracked. If false, the CNF is UNSAT (because we backtracked to zero assumptions).
+fn dpll_backtrack(
+    cnf: &ast::Cnf,
+    asgmt: &mut ast::Asgmt,
+    stack: &mut Vec<(ast::Literal, HashSet<ast::Atom>)>,
+    watchers: &mut Watchers,
+    falsified: &mut bool,
+    verbosity: usize)
+    -> bool
+{
+    match stack.pop() {
+        None => return false,
+        Some((assumed, consquences)) => {
+            if 0 < verbosity {
+                log::info!("Assumption {} failed, assuming its inverse", assumed);
+            }
+            // Note: there is not a good way to log when an assumption
+            // fails in both directions, as this is implicit; the second
+            // assignment is treated as a consquence like the propagate
+            // variables.
+            for new in consquences {
+                if 3 < verbosity {
+                    log::info!("Removing consequent {}", new);
+                };
+                asgmt.remove(&new);
+            };
+            if 3 < verbosity {
+                log::info!("Assignment after rolling back changes and assuming inverse: {}", asgmt);
+            }
+            let assumed_atom = assumed.atom();
+            asgmt.insert(assumed_atom, !assumed.phase());
+
+            let (prop_consequences, prop_falsified) =
+                propagate_with_watcher(cnf, asgmt, assumed.inversion(), watchers, verbosity);
+            *falsified = prop_falsified;
+            if let Some((_, prev_consequences)) = stack.last_mut() {
+                prev_consequences.insert(assumed_atom);
+                prev_consequences.extend(prop_consequences)
+            };
+            return true
+        },
+    }
+}
 
 fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> bool {
     let mut stack: Vec<(ast::Literal, HashSet<ast::Atom>)> = Vec::new();
+    let mut falsified = false;
 
     preprocess(cnf, asgmt, verbosity);
     bool_propagate(cnf, asgmt, verbosity);
@@ -331,44 +441,20 @@ fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> bool {
     let mut watchers = Watchers::new(cnf, asgmt, verbosity);
 
     loop {
-        if let Some(phase) = cnf.eval(asgmt) {
+        if falsified {
+            falsified = false;
+            if !dpll_backtrack(cnf, asgmt, &mut stack, &mut watchers, &mut falsified, verbosity) {
+                return false
+            };
+            continue
+        } else if let Some(phase) = cnf.eval(asgmt) {
             if phase {
                 return true
             };
-            match stack.pop() {
-                None => return false,
-                Some((assumed, consquences)) => {
-                    if 0 < verbosity {
-                        log::info!("Assumption {} failed, assuming its inverse", assumed);
-                    }
-                    // Note: there is not a good way to log when an assumption
-                    // fails in both directions, as this is implicit; the second
-                    // assignment is treated as a consquence like the propagate
-                    // variables.
-                    for new in consquences {
-                        if 3 < verbosity {
-                            log::info!("Removing consequent {}", new);
-                        };
-                        asgmt.remove(&new);
-                    };
-                    if 3 < verbosity {
-                        log::info!("Assignment after rolling back changes and assuming inverse: {}", asgmt);
-                    }
-                    let assumed_atom = assumed.atom();
-                    asgmt.insert(assumed_atom, !assumed.phase());
-                    if let Some((_, prev_consequences)) = stack.last_mut() {
-                        prev_consequences.insert(assumed_atom);
-                        let (prop_consequences, falsified) =
-                            propagate_with_watcher(cnf, asgmt, assumed.inversion(), &mut watchers, verbosity);
-                        prev_consequences.extend(prop_consequences);
-                        if 3 < verbosity && falsified {
-                            log::info!("Expecting immediate backtrack (after pop)")
-                            // TODO: we know the cnf is false, we should deal with it here somehow
-                        }
-                    };
-                    continue
-                },
-            }
+            if !dpll_backtrack(cnf, asgmt, &mut stack, &mut watchers, &mut falsified, verbosity) {
+                return false
+            };
+            continue
         };
 
         let literal = choose_literal(cnf, asgmt);
@@ -379,14 +465,12 @@ fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> bool {
             log::info!("Adding assumption: {}", literal);
         };
         asgmt.insert(atom, phase);
-        let (prop_consequences, falsified) = propagate_with_watcher(cnf, asgmt, literal, &mut watchers, verbosity);
+        let (prop_consequences, prop_falsified) = propagate_with_watcher(cnf, asgmt, literal, &mut watchers, verbosity);
         stack.push((literal, prop_consequences));
-        if 3 < verbosity && falsified {
-            log::info!("Expecting immediate backtrack")
-            // TODO: we know the cnf is false, we should deal with it here somehow
-        }
+        falsified = prop_falsified
     }
 }
+
 
 
 pub fn sat(cnf: &ast::Cnf, verbosity: usize) -> Option<ast::Asgmt> {
