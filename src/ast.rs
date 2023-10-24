@@ -115,16 +115,23 @@ impl Clause {
         }
     }
 
+    pub fn shrink_to_fit(&mut self) {
+        self.literals.shrink_to_fit()
+    }
+
     pub fn add(&mut self, literal: Literal) {
         self.literals.push(literal)
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, Literal> {
+    pub fn literals(&self) -> impl Iterator<Item = &Literal> {
         self.literals.iter()
     }
 
-    pub fn atoms(&self) -> HashSet<Atom> {
-        self.literals.iter().map(|literal| literal.atom()).collect()
+    pub fn unassigned_literals<'a, 'b, 'c>(&'a self, asgmt: &'b Asgmt) -> impl Iterator<Item = &'c Literal>
+        where 'a: 'c, 'b: 'c
+    {
+        self.literals()
+            .filter(|lit| asgmt.get(&lit.atom()).is_none())
     }
 
     // Evaluates clause when fully assigned
@@ -139,13 +146,6 @@ impl Clause {
         }
         Some(false)
     }
-
-    pub fn unassigned_literals<'a, 'b, 'c>(&'a self, asgmt: &'b Asgmt) -> impl Iterator<Item = &'c Literal>
-        where 'a: 'c, 'b: 'c
-    {
-        self.iter()
-            .filter(|lit| asgmt.get(&lit.atom()).is_none())
-    }
 }
 
 impl IntoIterator for Clause {
@@ -158,7 +158,8 @@ impl IntoIterator for Clause {
 }
 
 impl std::convert::From<Vec<Literal>> for Clause {
-    fn from(literals: Vec<Literal>) -> Self {
+    fn from(mut literals: Vec<Literal>) -> Self {
+        literals.shrink_to_fit();
         Self {literals}
     }
 }
@@ -177,34 +178,39 @@ impl fmt::Display for Clause {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Cnf {
     clauses: Vec<Clause>,
+    atoms: HashSet<Atom>,
 }
 
 impl Cnf {
     pub fn new() -> Self {
         Self {
             clauses: Vec::new(),
+            atoms: HashSet::new()
         }
     }
 
+    pub fn shrink_to_fit(&mut self) {
+        self.clauses.shrink_to_fit();
+        self.atoms.shrink_to_fit()
+    }
+
     pub fn add(&mut self, clause: Clause) {
+        self.atoms.extend(clause.literals().map(|literal| literal.atom()));
         self.clauses.push(clause)
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, Clause> {
+    pub fn clauses(&self) -> std::slice::Iter<'_, Clause> {
         self.clauses.iter()
     }
 
-    pub fn atoms(&self) -> HashSet<Atom> {
-        self.clauses.iter()
-            .flat_map(|clause|
-                clause.literals.iter().map(|literal| literal.atom()))
-            .collect()
+    pub fn atoms<'a>(&'a self) -> impl Iterator<Item = Atom> + 'a {
+        self.atoms.iter().map(|&atom| atom)
     }
 
     pub fn free_bound_atoms_pair(&self, asgmt: &Asgmt) -> (HashSet<Atom>, HashSet<Atom>) {
-        let all = self.atoms();
         let bound = asgmt.atoms();
-        (all.difference(&bound).map(|&atom| atom).collect(), bound)
+        let free = self.atoms().filter(|atom| !bound.contains(atom)).collect();
+        (free, bound)
     }
 
     pub fn free_atoms(&self, asgmt: &Asgmt) -> HashSet<Atom> {
@@ -243,16 +249,19 @@ impl IntoIterator for Cnf {
 }
 
 impl std::convert::From<Vec<Clause>> for Cnf {
-    fn from(clauses: Vec<Clause>) -> Self {
-        Self {clauses}
+    fn from(mut clauses: Vec<Clause>) -> Self {
+        clauses.shrink_to_fit();
+        let atoms = clauses.iter()
+            .flat_map(|clause| clause.literals.iter().map(|literal| literal.atom()))
+            .collect();
+        Self {clauses, atoms}
     }
 }
 
 impl std::convert::From<Vec<Vec<Literal>>> for Cnf {
     fn from(clauses: Vec<Vec<Literal>>) -> Self {
-        Self {
-            clauses: clauses.into_iter().map(Clause::from).collect()
-        }
+        let clauses: Vec<Clause> = clauses.into_iter().map(Clause::from).collect();
+        Self::from(clauses)
     }
 }
 

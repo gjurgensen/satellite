@@ -48,6 +48,7 @@ where P: AsRef<path::Path> {
             };
             clause.add(literal);
         }
+        clause.shrink_to_fit();
         if 3 < verbosity {
             log::info!("Adding clause: {}", clause);
         };

@@ -14,7 +14,7 @@ enum EvalResult {
 // Assumption: clause is normal
 fn get_literal_when_unit(clause: &ast::Clause, asgmt: &ast::Asgmt) -> Result<ast::Literal, EvalResult> {
     let mut unit : Option<ast::Literal> = None;
-    for literal in clause.iter() {
+    for literal in clause.literals() {
         match asgmt.get(&literal.atom()) {
             Some(phase) => {
                 if phase == literal.phase() {
@@ -31,7 +31,7 @@ fn get_literal_when_unit(clause: &ast::Clause, asgmt: &ast::Asgmt) -> Result<ast
 }
 
 fn try_find_propagate_unit(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> Option<ast::Atom> {
-    for clause in cnf.iter() {
+    for clause in cnf.clauses() {
         if let Ok(literal) = get_literal_when_unit(&clause, asgmt) {
             let atom = literal.atom();
             let phase = literal.phase();
@@ -58,8 +58,8 @@ fn unit_propagate_all(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) 
 fn purity(atom: ast::Atom, cnf: &ast::Cnf) -> Option<bool> {
     let mut occurs_pos = false;
     let mut occurs_neg = false;
-    for clause in cnf.iter() {
-        for literal in clause.iter() {
+    for clause in cnf.clauses() {
+        for literal in clause.literals() {
             if literal.atom() == atom {
                 if literal.phase() {
                     if occurs_neg {
@@ -123,8 +123,8 @@ fn choose_literal(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt) -> ast::Literal {
     // This is of course the spot to try heuristics. For now, we arbitrarily
     // choose the first literal we come across.
     let bound = asgmt.atoms();
-    cnf.iter()
-        .flat_map(|clause| clause.iter().filter(|literal| !bound.contains(&literal.atom())))
+    cnf.clauses()
+        .flat_map(|clause| clause.literals().filter(|literal| !bound.contains(&literal.atom())))
         .cloned()
         .next()
         .unwrap()
@@ -156,7 +156,7 @@ impl<'a> Watchers<'a> {
             clauses: HashMap::new(),
             watchers: HashMap::new(),
         };
-        for clause in cnf.iter() {
+        for clause in cnf.clauses() {
             let (lit1, lit2) = choose_watched_literals(clause, asgmt);
             watchers.set(lit1, lit2, clause);
             if 2 < verbosity {
