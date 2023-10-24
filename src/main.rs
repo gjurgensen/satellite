@@ -62,10 +62,11 @@ fn empty_sat() {
     } else {
         println!("unsat");
     }
-    assert!(result != None);
+    assert!(result.is_some());
 }
 
 #[test]
+// Panics because we don't expect any singleton clauses to exist. This should be handled by normalization.
 fn singleton_sat() {
     let atom = ast::Atom::new(0);
     let cnf: ast::Cnf = ast::Cnf::from(vec![vec![ast::Literal::new(true, atom)]]);
@@ -75,10 +76,11 @@ fn singleton_sat() {
     } else {
         println!("unsat");
     }
-    assert!(result != None);
+    assert!(result.is_some());
 }
 
 #[test]
+// Same panic as above
 fn trivial_noncontradiction() {
     let atom = ast::Atom::new(0);
     let cnf: ast::Cnf = ast::Cnf::from(vec![
@@ -94,51 +96,53 @@ fn trivial_noncontradiction() {
     assert!(result == None);
 }
 
-#[test]
-fn dimacs_mini() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini.cnf", 2) {
+fn dimacs_test<P>(path: P, sat: bool, verbosity: usize) where P: AsRef<std::path::Path> {
+    // env_logger::builder().filter_level(log::LevelFilter::Info).init();
+
+    let result = dimacs::read_dimacs_check_sat_and_print(path, verbosity);
+    if let Err(err) = &result {
         eprintln!("Error: {}", err);
     }
+    assert!(result.is_ok());
+    let result = result.unwrap();
+    if sat {
+        assert!(result.is_some())
+    } else {
+        assert!(result == None)
+    }
+}
+
+#[test]
+fn dimacs_mini() {
+    dimacs_test("tests/mini.cnf", true, 2)
 }
 
 #[test]
 fn dimacs_mini2() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini2.cnf", 2) {
-        eprintln!("Error: {}", err);
-    }
+    dimacs_test("tests/mini2.cnf", true, 2)
 }
 
 #[test]
 fn dimacs_mini3() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/mini3.cnf", 2) {
-        eprintln!("Error: {}", err);
-    }
+    dimacs_test("tests/mini3.cnf", true, 2)
 }
 
 #[test]
 fn dimacs_uf20_01000() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf20-01000.cnf", 2) {
-        eprintln!("Error: {}", err);
-    }
+    dimacs_test("tests/uf20-01000.cnf", true, 2)
 }
 
 #[test]
 fn dimacs_uf100_01() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf100-430/uf100-01.cnf", 1) {
-        eprintln!("Error: {}", err);
-    }
+    dimacs_test("tests/uf100-430/uf100-01.cnf", true, 1)
 }
 
 #[test]
 fn dimacs_uuf100_01() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uuf100-430/uuf100-01.cnf", 1) {
-        eprintln!("Error: {}", err);
-    }
+    dimacs_test("tests/uuf100-430/uuf100-01.cnf", false, 1)
 }
 
 #[test]
 fn dimacs_uf250_01() {
-    if let Err(err) = dimacs::read_dimacs_check_sat_and_print("tests/uf250/uf250-01.cnf", 0) {
-        eprintln!("Error: {}", err);
-    }
+    dimacs_test("tests/uf250/uf250-01.cnf", true, 0)
 }
