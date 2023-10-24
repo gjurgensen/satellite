@@ -30,8 +30,10 @@ impl fmt::Display for Atom {
 ////////////////////////////////////////////////////////////////////////////////
 
 // A partial mapping from atoms to phases
-// pub type Asgmt = HashMap<Atom, bool>;
 #[derive(PartialEq, Eq, Clone, Debug)]
+
+// TODO: if we ever need to regularly inspect which variables are free, Asgmt
+// should maintain a list which it modifies on each insert/remove.
 pub struct Asgmt (HashMap<Atom, bool>);
 
 impl Asgmt {
@@ -174,7 +176,6 @@ impl fmt::Display for Clause {
 ////////////////////////////////////////////////////////////////////////////////
 
 // A conjunction of clauses
-// TODO: add in assignment
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Cnf {
     clauses: Vec<Clause>,
@@ -220,7 +221,6 @@ impl Cnf {
     // Evaluates cnf when sufficiently assigned (evaluates a fully assigned clause,
     // then true if all true, false if exists false, undefined otherwise).
     pub fn eval(&self, asgmt: &Asgmt) -> Option<bool> {
-        // println!("Evaluating cnf {} under assignment {:?}", cnf, asgmt);
         let mut under_assigned = false;
         for clause in self.clauses.iter() {
             if let Some(val) = clause.eval(asgmt) {
