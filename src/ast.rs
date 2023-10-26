@@ -110,6 +110,16 @@ pub struct Clause {
     literals: Vec<Literal>,
 }
 
+// TODO: implement monadic crate?
+// TODO: move to some util file
+fn fold_option<A, B, F>(iter: impl Iterator<Item = A>, init: B, mut f: F) -> Option<B>
+where
+    F: FnMut(B, A) -> Option<B>
+{
+    iter.fold(Some(init), |o, a| o.map(|x| f(x, a)).flatten())
+}
+
+
 impl Clause {
     pub fn new() -> Self {
         Self {
@@ -117,9 +127,9 @@ impl Clause {
         }
     }
 
-    pub fn shrink_to_fit(&mut self) {
-        self.literals.shrink_to_fit()
-    }
+    // pub fn shrink_to_fit(&mut self) {
+    //     self.literals.shrink_to_fit()
+    // }
 
     pub fn add(&mut self, literal: Literal) {
         self.literals.push(literal)
@@ -134,6 +144,37 @@ impl Clause {
     {
         self.literals()
             .filter(|lit| asgmt.get(&lit.atom()).is_none())
+    }
+
+    // - Removes duplicate literals.
+    // - Returns Err if a clause is trivially unsatisfiable (empty, or includes
+    //   two literals of the same atom with a different phase).
+    // - If trivial unit clause, returns the literal
+    // TODO: shrink here, remove public interface?
+    pub fn normalize(&mut self) -> Result<Option<Literal>, ()> {
+        let asgmt = fold_option(self.literals.iter(), Asgmt::new(), |mut asgmt, literal|
+            match asgmt.get(&literal.atom()) {
+                Some(phase) => {
+                    if phase == literal.phase() {
+                        Some(asgmt)
+                    } else {
+                        None
+                    }
+                },
+                None => {
+                    asgmt.insert(literal.atom(), literal.phase());
+                    Some(asgmt)
+                },
+            }
+        ).ok_or(())?;
+        self.literals = asgmt.0.into_iter().map(|(atom, phase)| Literal::new(phase, atom)).collect();
+        self.literals.shrink_to_fit();
+        let len = self.literals.len();
+        match len {
+            0 => Err(()),
+            1 => Ok(Some(self.literals.get(0).unwrap().clone())),
+            _ => Ok(None)
+        }
     }
 
     // Evaluates clause when fully assigned
@@ -216,6 +257,40 @@ impl Cnf {
 
     pub fn free_atoms(&self, asgmt: &Asgmt) -> HashSet<Atom> {
         self.free_bound_atoms_pair(asgmt).0
+    }
+
+    // - Removes duplicate literals in clauses.
+    // - Returns None if a clause is trivially unsatisfiable (empty, or includes
+    //   two literals of the same atom with a different phase).
+    // - Removes trivial unit clauses and returns their value in an initial assignment
+    pub fn normalize(&mut self) -> Option<Asgmt> {
+        let (asgmt, clauses) = fold_option(std::mem::take(&mut self.clauses).into_iter(), (Asgmt::new(), Vec::new()),
+            |(mut asgmt, mut vec), mut clause| {
+                match clause.normalize() {
+                    Ok(Some(literal)) => {
+                        // asgmt.insert(literal.atom(), literal.phase());
+                        match asgmt.get(&literal.atom()) {
+                            Some(phase) => {
+                                if phase != literal.phase() {
+                                    return None
+                                }
+                            },
+                            None => {
+                                asgmt.insert(literal.atom(), literal.phase());
+                            },
+                        };
+                        Some((asgmt, vec))
+                    },
+                    Ok(None) => {
+                        vec.push(clause);
+                        Some((asgmt, vec))
+                    },
+                    Err(()) => None,
+                }
+            }
+        )?;
+        self.clauses = clauses;
+        Some(asgmt)
     }
 
     // Evaluates cnf when sufficiently assigned (evaluates a fully assigned clause,

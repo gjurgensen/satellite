@@ -48,7 +48,6 @@ where P: AsRef<path::Path> {
             };
             clause.add(literal);
         }
-        clause.shrink_to_fit();
         if 3 < verbosity {
             log::info!("Adding clause: {}", clause);
         };
@@ -60,11 +59,11 @@ where P: AsRef<path::Path> {
 
 pub fn read_dimacs_and_check_sat<P>(path: P, verbosity: usize) -> Result<Option<ast::Asgmt>, String>
 where P: AsRef<path::Path> {
-    let cnf: ast::Cnf = read_dimacs(path, verbosity).ok_or("Error parsing DIMACs file.")?;
+    let mut cnf: ast::Cnf = read_dimacs(path, verbosity).ok_or("Error parsing DIMACs file.")?;
     if 1 < verbosity {
         log::info!("Read CNF: {}", cnf);
     };
-    Ok(dpll::sat(&cnf, verbosity))
+    Ok(dpll::sat(&mut cnf, verbosity))
 }
 
 pub fn read_dimacs_check_sat_and_print<P>(path: P, verbosity: usize) -> Result<Option<ast::Asgmt>, String>

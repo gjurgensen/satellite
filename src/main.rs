@@ -55,8 +55,8 @@ fn test_literal() {
 
 #[test]
 fn empty_sat() {
-    let cnf = ast::Cnf::new();
-    let result = dpll::sat(&cnf, 2);
+    let mut cnf = ast::Cnf::new();
+    let result = dpll::sat(&mut cnf, 2);
     if let Some(asgmt) = &result {
         println!("sat: {}", asgmt);
     } else {
@@ -66,11 +66,10 @@ fn empty_sat() {
 }
 
 #[test]
-// Panics because we don't expect any singleton clauses to exist. This should be handled by normalization.
 fn singleton_sat() {
     let atom = ast::Atom::new(0);
-    let cnf: ast::Cnf = ast::Cnf::from(vec![vec![ast::Literal::new(true, atom)]]);
-    let result = dpll::sat(&cnf, 2);
+    let mut cnf: ast::Cnf = ast::Cnf::from(vec![vec![ast::Literal::new(true, atom)]]);
+    let result = dpll::sat(&mut cnf, 2);
     if let Some(asgmt) = &result {
         println!("sat: {}", asgmt);
     } else {
@@ -80,14 +79,13 @@ fn singleton_sat() {
 }
 
 #[test]
-// Same panic as above
 fn trivial_noncontradiction() {
     let atom = ast::Atom::new(0);
-    let cnf: ast::Cnf = ast::Cnf::from(vec![
+    let mut cnf: ast::Cnf = ast::Cnf::from(vec![
         vec![ast::Literal::new(true, atom)],
         vec![ast::Literal::new(false, atom)]
     ]);
-    let result = dpll::sat(&cnf, 2);
+    let result = dpll::sat(&mut cnf, 2);
     if let Some(asgmt) = &result {
         println!("sat: {}", asgmt);
     } else {
