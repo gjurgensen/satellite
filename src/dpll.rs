@@ -1,5 +1,7 @@
 use std::collections::{HashSet, HashMap};
 
+use itertools::Itertools;
+
 use crate::ast;
 
 
@@ -118,8 +120,46 @@ fn preprocess(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) {
     pure_literal_elimination(cnf, asgmt, verbosity);
 }
 
+// TODO: consider assignment
+fn jeroslow_wang_score(cnf: &ast::Cnf, _asgmt: &ast::Asgmt) -> Vec<ast::Literal> {
+    let mut scores: HashMap<ast::Literal, u64> = HashMap::new();
+    for clause in cnf.clauses() {
+        for literal in clause.literals() {
+            // Note: It would be more efficient to use integers due to power of two sums
+            // let incr: f64 = (2 as f64).powi(-1 * (clause.len() as i32));
+            let incr = (2 as u64).pow(32 - (clause.len() as u32));
+            match scores.get_mut(literal) {
+                Some(score) => *score += incr,
+                None => {
+                    scores.insert(literal.clone(), incr);
+                },
+            }
+        }
+    };
+    scores.into_iter()
+        .sorted_by(|(_, score1), (_, score2)| score2.cmp(score1))
+        .map(|p| p.0)
+        .fold(Vec::new(), |mut vec, literal| {
+            if vec.iter().all(|higher_literal| literal.atom() != higher_literal.atom()) {
+                vec.push(literal)
+            };
+            vec
+        })
+}
+
+fn jw_choose_literal(asgmt: &mut ast::Asgmt, ranking: &Vec<ast::Literal>) -> ast::Literal {
+    let bound = asgmt.atoms();
+    // TODO: Perhaps we should maintain a slice into rankings where we left off, instead of going through the top choices
+    //   repeatedly after assignment
+    ranking.iter()
+        .filter(|literal| !bound.contains(&literal.atom()))
+        .cloned()
+        .next()
+        .unwrap()
+}
+
 // Assumption: There exists at least one literal in cnf
-fn choose_literal(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt) -> ast::Literal {
+fn _choose_literal(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt) -> ast::Literal {
     // This is of course the spot to try heuristics. For now, we arbitrarily
     // choose the first literal we come across.
     let bound = asgmt.atoms();
@@ -371,6 +411,8 @@ fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> bool {
     preprocess(cnf, asgmt, verbosity);
     bool_propagate(cnf, asgmt, verbosity);
 
+    let ranking = jeroslow_wang_score(cnf, asgmt);
+
     let mut watchers = Watchers::new(cnf, asgmt, verbosity);
 
     loop {
@@ -390,7 +432,7 @@ fn dpll(cnf: &ast::Cnf, asgmt: &mut ast::Asgmt, verbosity: usize) -> bool {
             continue
         };
 
-        let literal = choose_literal(cnf, asgmt);
+        let literal = jw_choose_literal(asgmt, &ranking);
         let atom = literal.atom();
         let phase = literal.phase();
 

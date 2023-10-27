@@ -127,6 +127,10 @@ impl Clause {
         self.literals.push(literal)
     }
 
+    pub fn len(&self) -> usize {
+        self.literals.len()
+    }
+
     pub fn literals(&self) -> impl Iterator<Item = &Literal> {
         self.literals.iter()
     }
@@ -231,6 +235,10 @@ impl Cnf {
     pub fn add(&mut self, clause: Clause) {
         self.atoms.extend(clause.literals().map(|literal| literal.atom()));
         self.clauses.push(clause)
+    }
+
+    pub fn len(&self) -> usize {
+        self.clauses.len()
     }
 
     pub fn clauses(&self) -> std::slice::Iter<'_, Clause> {
