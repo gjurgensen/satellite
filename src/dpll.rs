@@ -125,8 +125,6 @@ fn jeroslow_wang_score(cnf: &ast::Cnf, _asgmt: &ast::Asgmt) -> Vec<ast::Literal>
     let mut scores: HashMap<ast::Literal, u64> = HashMap::new();
     for clause in cnf.clauses() {
         for literal in clause.literals() {
-            // Note: It would be more efficient to use integers due to power of two sums
-            // let incr: f64 = (2 as f64).powi(-1 * (clause.len() as i32));
             let incr = (2 as u64).pow(32 - (clause.len() as u32));
             match scores.get_mut(literal) {
                 Some(score) => *score += incr,
