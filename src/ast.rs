@@ -2,6 +2,8 @@ use core::panic;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
+use crate::util;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -110,16 +112,6 @@ pub struct Clause {
     literals: Vec<Literal>,
 }
 
-// TODO: implement monadic crate?
-// TODO: move to some util file
-fn fold_option<A, B, F>(iter: impl Iterator<Item = A>, init: B, mut f: F) -> Option<B>
-where
-    F: FnMut(B, A) -> Option<B>
-{
-    iter.fold(Some(init), |o, a| o.map(|x| f(x, a)).flatten())
-}
-
-
 impl Clause {
     pub fn new() -> Self {
         Self {
@@ -152,7 +144,7 @@ impl Clause {
     // - If trivial unit clause, returns the literal
     // TODO: shrink here, remove public interface?
     pub fn normalize(&mut self) -> Result<Option<Literal>, ()> {
-        let asgmt = fold_option(self.literals.iter(), Asgmt::new(), |mut asgmt, literal|
+        let asgmt = util::fold_option(self.literals.iter(), Asgmt::new(), |mut asgmt, literal|
             match asgmt.get(&literal.atom()) {
                 Some(phase) => {
                     if phase == literal.phase() {
@@ -264,7 +256,7 @@ impl Cnf {
     //   two literals of the same atom with a different phase).
     // - Removes trivial unit clauses and returns their value in an initial assignment
     pub fn normalize(&mut self) -> Option<Asgmt> {
-        let (asgmt, clauses) = fold_option(std::mem::take(&mut self.clauses).into_iter(), (Asgmt::new(), Vec::new()),
+        let (asgmt, clauses) = util::fold_option(std::mem::take(&mut self.clauses).into_iter(), (Asgmt::new(), Vec::new()),
             |(mut asgmt, mut vec), mut clause| {
                 match clause.normalize() {
                     Ok(Some(literal)) => {

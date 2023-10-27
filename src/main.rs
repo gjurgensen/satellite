@@ -3,6 +3,7 @@ use clap::Parser;
 pub mod ast;
 pub mod dimacs;
 pub mod dpll;
+mod util;
 
 
 /// Satellite is a toy SAT solver

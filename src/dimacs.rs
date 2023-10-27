@@ -7,6 +7,8 @@ use crate::ast;
 use crate::dpll;
 
 
+////////////////////////////////////////////////////////////////////////////////
+
 pub fn read_dimacs<P>(path: P, verbosity: usize) -> Option<ast::Cnf>
 where P: AsRef<path::Path> {
     let file = fs::File::open(path).ok()?;
